@@ -1,6 +1,11 @@
-# --- Stage 1: Installer ---
-FROM debian:stable-slim AS installer
+# Sử dụng Debian Stable Slim để cân bằng giữa kích thước và tính ổn định
+FROM debian:stable-slim
 
+LABEL maintainer="CezDev"
+
+# 1. Cài đặt các gói cần thiết:
+# - curl, ca-certificates: Để tải bộ cài và giao tiếp HTTPS
+# - bash, tar: Để chạy script cài đặt và giải nén
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
@@ -8,30 +13,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tar \
     && rm -rf /var/lib/apt/lists/*
 
+# 2. Cài đặt opencode
+# Script sẽ tự động cài vào /root/.opencode/bin vì đang chạy user root
 RUN curl -fsSL https://opencode.ai/install | bash
 
-# --- Stage 2: Runtime ---
-FROM debian:stable-slim AS runtime
+# 3. Cấu hình PATH
+# Thêm đường dẫn binary vào biến môi trường PATH để gọi lệnh 'opencode' trực tiếp
+ENV PATH="/root/.opencode/bin:${PATH}"
 
-LABEL maintainer="CezDev"
+# 4. Thiết lập thư mục làm việc
+WORKDIR /root
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN groupadd -r opencode && useradd -r -g opencode -u 1000 -m -s /bin/bash opencode
-
-COPY --from=installer /root/.opencode/bin/opencode /usr/local/bin/opencode
-RUN chmod +x /usr/local/bin/opencode
-
-USER opencode
-WORKDIR /home/opencode
-
-# Lưu ý: Không còn giá trị mặc định nào được set tại đây.
-# Người dùng BẮT BUỘC phải truyền biến môi trường khi chạy container.
+# 5. Khai báo cổng
 EXPOSE 4096
 
-# --- COMMAND KHỞI CHẠY ---
-# Sử dụng fallback :-0.0.0.0 và :-4096 để tránh lỗi cú pháp lệnh nếu bạn quên truyền biến này.
-# User/Password sẽ được ứng dụng tự đọc từ biến môi trường (ENV) mà bạn truyền vào.
+# 6. Lệnh khởi chạy
+# Sử dụng 'exec' để giữ PID 1.
+# Hostname và Port có fallback giá trị mặc định nếu bạn quên truyền.
+# Username/Password KHÔNG có mặc định (bắt buộc truyền khi run).
 CMD ["/bin/bash", "-c", "exec opencode web --hostname ${OPENCODE_HOST:-0.0.0.0} --port ${OPENCODE_PORT:-4096}"]
