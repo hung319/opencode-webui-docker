@@ -9,3 +9,4 @@ services:
     volumes:
       - ../files/opencode.json:/root/.config/opencode/opencode.json
       - ../files/auth.json:/root/.local/share/opencode/auth.json
+      - ../files/openchamber:/root/.config/openchamber
