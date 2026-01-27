@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tar \
     && rm -rf /var/lib/apt/lists/*
 
+RUN mkdir -p /root/.config/opencode /root/.local/share/opencode
+
 # 2. Cài đặt opencode
 # Script sẽ tự động cài vào /root/.opencode/bin vì đang chạy user root
 RUN curl -fsSL https://opencode.ai/install | bash
