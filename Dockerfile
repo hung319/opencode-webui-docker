@@ -14,10 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Build OpenChamber (native deps)
+# Build OpenChamber
 RUN npm install -g @openchamber/web \
     && npm cache clean --force
-
 
 # =========================================
 # Runtime stage (DEBIAN STABLE)
@@ -28,7 +27,7 @@ LABEL maintainer="CezDev"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Runtime deps (tối thiểu)
+# Runtime deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
@@ -56,20 +55,38 @@ ENV PATH="/root/.opencode/bin:/usr/local/bin:${PATH}" \
 RUN mkdir -p /tmp/runtime-root && chmod 700 /tmp/runtime-root
 
 # -----------------------------------------
-# Entrypoint
+# Entrypoint (Fixed & Optimized)
 # -----------------------------------------
+# Sử dụng /bin/bash rõ ràng và logic mảng tường minh
 RUN cat <<'EOF' > /usr/local/bin/entrypoint && chmod +x /usr/local/bin/entrypoint
-#!/usr/bin/env bash
+#!/bin/bash
 set -e
 
+# 1. Khởi tạo mảng arg cơ bản
 PORT="${OPENCHAMBER_PORT:-8080}"
+# Lưu ý: Tách riêng từng phần tử mảng để an toàn nhất
+ARGS=("openchamber" "--port" "$PORT")
 
-ARGS=(openchamber --port "$PORT")
+# 2. Xử lý Password (Logic bạn cần)
+if [[ -n "$OPENCHAMBER_UI_PASSWORD" ]]; then
+    echo "🔒 Security: UI Password detected and applied."
+    ARGS+=("--ui-password" "$OPENCHAMBER_UI_PASSWORD")
+else
+    echo "⚠️ Security: No UI Password set. Running in open mode."
+fi
 
-[ -n "$OPENCHAMBER_UI_PASSWORD" ] && ARGS+=(--ui-password "$OPENCHAMBER_UI_PASSWORD")
-[ "$OPENCHAMBER_DEBUG" = "true" ] && ARGS+=(--debug)
+# 3. Xử lý Debug
+if [[ "$OPENCHAMBER_DEBUG" == "true" ]]; then
+    echo "🐛 Debug mode: ENABLED"
+    ARGS+=("--debug")
+    # In lệnh ra để debug (nhưng che password thực tế)
+    PRINT_CMD="${ARGS[*]/$OPENCHAMBER_UI_PASSWORD/******}"
+    echo "🚀 Executing command: $PRINT_CMD"
+else
+    echo "🚀 OpenChamber starting on port $PORT"
+fi
 
-echo "🚀 OpenChamber starting on port $PORT"
+# 4. Thực thi
 exec "${ARGS[@]}"
 EOF
 
