@@ -6,7 +6,7 @@ FROM node:20-bookworm-slim AS builder
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-dev make g++ build-essential ca-certificates \
+    python3 python3-dev make g++ build-essential ca-certificates git \
     && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g @openchamber/web && npm cache clean --force
