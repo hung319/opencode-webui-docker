@@ -4,7 +4,8 @@ services:
     pull_policy: always
     container_name: opencode
     restart: unless-stopped
-    user: root 
+    env_file:
+      - .env
     volumes:
       - ../files/opencode.json:/root/.config/opencode/opencode.json
       - ../files/auth.json:/root/.local/share/opencode/auth.json
