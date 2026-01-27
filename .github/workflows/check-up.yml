@@ -1,0 +1,62 @@
+name: Check OpenChamber Release
+
+on:
+  schedule:
+    # Chạy vào lúc 00:00 mỗi ngày (mỗi 24 giờ)
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Cho phép bấm chạy thủ công để test
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get latest release from OpenChamber
+        id: get_release
+        run: |
+          # Lấy tag_name của release mới nhất từ API GitHub
+          LATEST_RELEASE=$(curl -s https://api.github.com/repos/btriapitsyn/openchamber/releases/latest | jq -r .tag_name)
+          echo "latest_release=$LATEST_RELEASE" >> $GITHUB_OUTPUT
+          echo "Phiên bản mới nhất tìm thấy: $LATEST_RELEASE"
+
+      - name: Compare with last checked version
+        id: check_new
+        run: |
+          # Kiểm tra file lưu trữ phiên bản cũ, nếu không có thì tạo mới
+          touch last_release.txt
+          LAST_RELEASE=$(cat last_release.txt)
+          
+          if [ "$LAST_RELEASE" != "${{ steps.get_release.outputs.latest_release }}" ]; then
+            echo "has_update=true" >> $GITHUB_OUTPUT
+            echo "${{ steps.get_release.outputs.latest_release }}" > last_release.txt
+          else
+            echo "has_update=false" >> $GITHUB_OUTPUT
+            echo "Không có bản cập nhật mới."
+          fi
+
+      - name: Push result file and update last_release
+        if: steps.check_new.outputs.has_update == 'true'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Tạo file kết quả kq.txt với thông tin bản update
+          echo "Phát hiện release mới: ${{ steps.get_release.outputs.latest_release }} vào $(date)" > kq.txt
+          
+          git add last_release.txt kq.txt
+          git commit -m "Update: Phát hiện bản release mới ${{ steps.get_release.outputs.latest_release }}"
+          git push
+
+      - name: Trigger main.yml workflow
+        if: steps.check_new.outputs.has_update == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Gọi file main.yml (Lưu ý: main.yml phải có sự kiện on: workflow_dispatch)
+          gh workflow run main.yml
