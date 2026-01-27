@@ -17,12 +17,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Script sẽ tự động cài vào /root/.opencode/bin vì đang chạy user root
 RUN curl -fsSL https://opencode.ai/install | bash
 
-# 3. Cấu hình PATH
-# Thêm đường dẫn binary vào biến môi trường PATH để gọi lệnh 'opencode' trực tiếp
-ENV PATH="/root/.opencode/bin:${PATH}"
-
-RUN touch /root/.config/opencode/opencode.json
-
 # 4. Thiết lập thư mục làm việc
 WORKDIR /root
 
