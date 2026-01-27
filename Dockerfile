@@ -1,34 +1,57 @@
-# Sử dụng Debian Stable Slim để cân bằng giữa kích thước và tính ổn định
+# ===============================
+# OpenCode Web – Dockerfile
+# Fix OAuth / Auth in container
+# ===============================
+
 FROM debian:stable-slim
 
 LABEL maintainer="CezDev"
 
-# 1. Cài đặt các gói cần thiết:
-# - curl, ca-certificates: Để tải bộ cài và giao tiếp HTTPS
-# - bash, tar: Để chạy script cài đặt và giải nén
+# -------------------------------
+# 1. System dependencies
+# -------------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
     ca-certificates \
+    curl \
     bash \
     tar \
+    openssl \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Cài đặt opencode
-# Script sẽ tự động cài vào /root/.opencode/bin vì đang chạy user root
+# -------------------------------
+# 2. Install OpenCode
+# -------------------------------
 RUN curl -fsSL https://opencode.ai/install | bash
 
-# 3. Cấu hình PATH
-# Thêm đường dẫn binary vào biến môi trường PATH để gọi lệnh 'opencode' trực tiếp
-ENV PATH="/root/.opencode/bin:${PATH}"
+# -------------------------------
+# 3. Environment fixes for Docker
+# -------------------------------
+# Disable keyring (no DBus in container)
+# Fix XDG paths so auth.json can be written
+ENV PATH="/root/.opencode/bin:${PATH}" \
+    OPENCODE_DISABLE_KEYRING=1 \
+    XDG_DATA_HOME=/root/.local/share \
+    XDG_CONFIG_HOME=/root/.config \
+    XDG_RUNTIME_DIR=/tmp/runtime-root
 
-# 4. Thiết lập thư mục làm việc
+# Create runtime dir required by auth backend
+RUN mkdir -p /tmp/runtime-root && chmod 700 /tmp/runtime-root
+
+# -------------------------------
+# 4. Working directory
+# -------------------------------
 WORKDIR /root
 
-# 5. Khai báo cổng
+# -------------------------------
+# 5. Expose Web UI port
+# -------------------------------
 EXPOSE 4096
 
-# 6. Lệnh khởi chạy
-# Sử dụng 'exec' để giữ PID 1.
-# Hostname và Port có fallback giá trị mặc định nếu bạn quên truyền.
-# Username/Password KHÔNG có mặc định (bắt buộc truyền khi run).
-CMD ["/bin/bash", "-c", "exec opencode web --hostname ${OPENCODE_HOST:-0.0.0.0} --port ${OPENCODE_PORT:-4096}"]
+# -------------------------------
+# 6. Start OpenCode Web
+# -------------------------------
+# IMPORTANT:
+# - 0.0.0.0 only for binding
+# - Public access via domain/IP
+CMD ["/bin/bash", "-c", \
+  "exec opencode web --hostname ${OPENCODE_HOST:-0.0.0.0} --port ${OPENCODE_PORT:-4096}"]
