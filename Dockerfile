@@ -1,57 +1,86 @@
 # ===============================
-# OpenCode Web – Dockerfile
-# Fix OAuth / Auth in container
+# Builder
 # ===============================
+FROM debian:stable AS builder
+ENV DEBIAN_FRONTEND=noninteractive
 
-FROM debian:stable-slim
-
-LABEL maintainer="CezDev"
-
-# -------------------------------
-# 1. System dependencies
-# -------------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
-    bash \
-    tar \
-    openssl \
+    python3 \
+    make \
+    g++ \
+    build-essential \
+    gnupg \
     && rm -rf /var/lib/apt/lists/*
 
-# -------------------------------
-# 2. Install OpenCode
-# -------------------------------
+# Node.js 20
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends nodejs \
+ && rm -rf /var/lib/apt/lists/*
+
+# Install OpenChamber
+RUN npm install -g @openchamber/web \
+ && npm cache clean --force
+
+# ===============================
+# Runtime
+# ===============================
+FROM debian:stable-slim
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Minimal runtime deps (+ curl REQUIRED)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    openssl \
+    libstdc++6 \
+    libgcc-s1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /usr/share/doc /usr/share/man
+
+# Node.js runtime only
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends nodejs \
+ && rm -rf /var/lib/apt/lists/* \
+ && rm -rf /usr/share/doc /usr/share/man
+
+# Cloudflared
+RUN curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 \
+    -o /usr/local/bin/cloudflared \
+ && chmod +x /usr/local/bin/cloudflared
+
+# OpenChamber
+COPY --from=builder /usr/lib/node_modules/@openchamber/web /usr/lib/node_modules/@openchamber/web
+RUN ln -sf /usr/lib/node_modules/@openchamber/web/bin/openchamber /usr/bin/openchamber
+
+# OpenCode CLI (no auto start)
 RUN curl -fsSL https://opencode.ai/install | bash
 
-# -------------------------------
-# 3. Environment fixes for Docker
-# -------------------------------
-# Disable keyring (no DBus in container)
-# Fix XDG paths so auth.json can be written
+# Env fixes
 ENV PATH="/root/.opencode/bin:${PATH}" \
     OPENCODE_DISABLE_KEYRING=1 \
-    XDG_DATA_HOME=/root/.local/share \
-    XDG_CONFIG_HOME=/root/.config \
+    OPENCODE_SKIP_START=true \
     XDG_RUNTIME_DIR=/tmp/runtime-root
 
-# Create runtime dir required by auth backend
 RUN mkdir -p /tmp/runtime-root && chmod 700 /tmp/runtime-root
 
-# -------------------------------
-# 4. Working directory
-# -------------------------------
+# ===============================
+# OpenChamber ENV
+# ===============================
+ENV OPENCHAMBER_HOST=0.0.0.0 \
+    OPENCHAMBER_PORT=3000 \
+    OPENCHAMBER_ARGS=
+
 WORKDIR /root
+EXPOSE 3000
 
-# -------------------------------
-# 5. Expose Web UI port
-# -------------------------------
-EXPOSE 4096
-
-# -------------------------------
-# 6. Start OpenCode Web
-# -------------------------------
-# IMPORTANT:
-# - 0.0.0.0 only for binding
-# - Public access via domain/IP
-CMD ["/bin/bash", "-c", \
-  "exec opencode web --hostname ${OPENCODE_HOST:-0.0.0.0} --port ${OPENCODE_PORT:-4096}"]
+CMD ["sh", "-c", "\
+exec openchamber \
+ --host ${OPENCHAMBER_HOST} \
+ --port ${OPENCHAMBER_PORT} \
+ ${OPENCHAMBER_UI_PASSWORD:+--ui-password ${OPENCHAMBER_UI_PASSWORD}} \
+ ${OPENCHAMBER_ARGS} \
+"]
