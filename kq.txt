@@ -1,1 +1,1 @@
-Phát hiện release mới: v1.5.8 vào Tue Jan 27 22:51:11 UTC 2026
+Phát hiện release mới: v1.5.9 vào Wed Jan 28 01:45:25 UTC 2026
