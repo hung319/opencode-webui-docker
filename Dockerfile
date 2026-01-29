@@ -25,7 +25,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 # Install minimal deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl bash openssl libstdc++6 libgcc-s1 python3 git \
+    ca-certificates curl bash openssl libstdc++6 libgcc-s1 python3 git nodejs npm\
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local /usr/local
