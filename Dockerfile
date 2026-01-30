@@ -28,6 +28,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl bash openssl libstdc++6 libgcc-s1 python3 git nodejs npm openssh-client\
     && rm -rf /var/lib/apt/lists/*
 
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
 COPY --from=builder /usr/local /usr/local
 RUN curl -fsSL https://opencode.ai/install | bash
 
