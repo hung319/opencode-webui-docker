@@ -1,1 +1,1 @@
-Phát hiện release mới: v1.6.3 vào Mon Feb  2 23:07:55 UTC 2026
+Phát hiện release mới: v1.6.4 vào Fri Feb  6 00:05:07 UTC 2026
